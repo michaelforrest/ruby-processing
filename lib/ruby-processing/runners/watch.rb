@@ -13,7 +13,6 @@ module Processing
         Dir["#{path}/**/*.rb"]
       }.flatten
       @files << Processing::SKETCH_PATH
-      puts "watching #{@files.inspect}"
       @time = Time.now
       # Doesn't work well enough for now.
       # record_state_of_ruby
@@ -33,7 +32,14 @@ module Processing
             # Taking it out the reset until it can be made to work more reliably
             # rewind_to_recorded_state
             GC.start
-            @runner = Thread.start { Processing.load_and_run_sketch }
+            @runner = Thread.start { 
+              #@files.each do |file|
+              # puts "loading #{file}"
+              # load file
+              # puts "loaded #{file}"
+              #end
+              Processing.load_and_run_sketch 
+            }
           end
           sleep 0.33
         end
@@ -70,22 +76,21 @@ module Processing
 #      puts "class is #{app_class}"
 #      app_class.send(:remove_const, app_class_name)
 #      puts "class is #{app_class} after removal"      
-      wipe_out_app_classes!
+      wipe_out_app_classes! (app)
       
     end
     
-    def wipe_out_app_classes!
+    def wipe_out_app_classes! app
       
-      class_names_to_remove = Module.constants - HARNESS_CLASS_NAMES
+      class_names_to_remove = Module.constants - HARNESS_CLASS_NAMES + [app.class.to_s]
+      #puts "removing classes #{class_names_to_remove.inspect}"
       class_names_to_remove.each do |class_name|
-        puts "removing #{class_name}"
         constant_names = class_name.to_s.split(/::/)
         app_class_name = constant_names.pop
         app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
-        puts "class is #{app_class}"
         app_class.send(:remove_const, app_class_name)
       end
-      
+      $".replace ($" - @files)
 #      constant_names = app.class.to_s.split(/::/)
 #      app_class_name = constant_names.pop
 #      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }

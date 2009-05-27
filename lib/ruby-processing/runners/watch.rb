@@ -5,10 +5,15 @@ module Processing
   # A sketch loader, observer, and reloader, to tighten 
   # the feedback between code and effect.
   class Watcher
+    HARNESS_CLASS_NAMES =  ["Marshal", "JavaUtilities", "IndexError", "Kernel", "Class", "RubyLex", "Symbol", "TOPLEVEL_BINDING", "IRB", "FALSE", "SIGNALS", "FileTest", "JRuby", "Readline", "STDOUT", "LoadError", "ThreadGroup", "RUBY_PLATFORM", "MatchData", "Kconv", "VERSION", "FalseClass", "Integer", "ScriptError", "RangeError", "StandardError", "Struct", "SystemExit", "ARGF", "ArrayJavaProxy", "Time", "ENV_JAVA", "RUBY_RELEASE_DATE", "SyntaxError", "ArrayJavaProxyCreator", "NoMethodError", "RUBY_ENGINE", "Comparable", "Precision", "RELEASE_DATE", "JavaSignal", "FloatDomainError", "GC", "Numeric", "UnboundMethod", "Signal", "Bignum", "String", "Java", "ZeroDivisionError", "PLATFORM", "ArgumentError", "Math", "Regexp", "NameError", "File", "TrueClass", "NoMemoryError", "Fatal", "TRUE", "Dir", "NilClass", "RUBY_PATCHLEVEL", "Process", "STDIN", "IOError", "ConcreteJavaProxy", "STDERR", "SignalException", "JavaProxy", "Array", "Continuation", "SLex", "SystemStackError", "NotImplementedError", "Module", "Exception2MessageMapper", "ObjectSpace", "Fixnum", "IO", "Enumerable", "ENV", "Object", "RP5_ROOT", "JavaArrayUtilities", "RubyToken", "Binding", "RegexpError", "Boot", "JRUBY_VERSION", "Hash", "ThreadError", "SKETCH_ROOT", "JavaInterfaceExtender", "LocalJumpError", "JavaProxyMethods", "Proc", "Thread", "SystemCallError", "JavaInterfaceTemplate", "Range", "NativeException", "ROOT", "Data", "SecurityError", "ARGV", "Errno", "Method", "TypeError", "RuntimeError", "NIL", "Float", "RUBY_VERSION", "Exception", "Processing", "JavaPackageModuleTemplate", "InterfaceJavaProxy", "ConcurrencyError", "Interrupt", "EOFError", "MatchingData"]
     
     # Sic a new Processing::Watcher on the sketch
     def initialize
-      @file = Processing::SKETCH_PATH
+      @files = ARGV.map { |path|
+        Dir["#{path}/**/*.rb"]
+      }.flatten
+      @files << Processing::SKETCH_PATH
+      puts "watching #{@files.inspect}"
       @time = Time.now
       # Doesn't work well enough for now.
       # record_state_of_ruby
@@ -22,9 +27,8 @@ module Processing
       @runner = Thread.start { Processing.load_and_run_sketch } unless $app
       thread = Thread.start do
         loop do
-          file_mtime = File.stat(@file).mtime
-          if file_mtime > @time
-            @time = file_mtime
+          #if file_mtime > @time
+          if any_files_changed?
             wipe_out_current_app!
             # Taking it out the reset until it can be made to work more reliably
             # rewind_to_recorded_state
@@ -37,6 +41,16 @@ module Processing
       thread.join
     end
     
+    def any_files_changed?
+      @files.each do |file|
+        if File.stat(file).mtime > @time
+          puts "#{file} changed"
+          @time = File.stat(file).mtime
+          return true 
+        end
+      end
+      false
+    end
     
     # Used to completely remove all traces of the current sketch, 
     # so that it can be loaded afresh. Go down into modules to find it, even.
@@ -48,10 +62,35 @@ module Processing
       # Wait for the animation thread to finish rendering
       sleep 0.075
       app.close
-      constant_names = app.class.to_s.split(/::/)
-      app_class_name = constant_names.pop
-      obj = constant_names.inject(Object) {|o, name| o.send(:const_get, name) }
-      obj.send(:remove_const, app_class_name)    
+ 
+#      constant_names = app.class.to_s.split(/::/)
+#      app_class_name = constant_names.pop
+#      puts "removing #{app_class_name}"
+#      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
+#      puts "class is #{app_class}"
+#      app_class.send(:remove_const, app_class_name)
+#      puts "class is #{app_class} after removal"      
+      wipe_out_app_classes!
+      
+    end
+    
+    def wipe_out_app_classes!
+      
+      class_names_to_remove = Module.constants - HARNESS_CLASS_NAMES
+      class_names_to_remove.each do |class_name|
+        puts "removing #{class_name}"
+        constant_names = class_name.to_s.split(/::/)
+        app_class_name = constant_names.pop
+        app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
+        puts "class is #{app_class}"
+        app_class.send(:remove_const, app_class_name)
+      end
+      
+#      constant_names = app.class.to_s.split(/::/)
+#      app_class_name = constant_names.pop
+#      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
+#      app_class.send(:remove_const, app_class_name)
+
     end
     
     # The following methods were intended to make the watcher clean up all code

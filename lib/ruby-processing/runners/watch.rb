@@ -90,7 +90,12 @@ module Processing
         app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
         app_class.send(:remove_const, app_class_name)
       end
-      $".replace ($" - @files)
+      # IT'S A DAMN HACK!
+      # TODO: work out how to consolidate to absolute paths
+      $".replace($".reject{ |item| item.match(/sample/) })
+      puts "included:::"
+      puts $".inspect
+      puts "files: #{@files.inspect}"
 #      constant_names = app.class.to_s.split(/::/)
 #      app_class_name = constant_names.pop
 #      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }

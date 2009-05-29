@@ -33,11 +33,6 @@ module Processing
             # rewind_to_recorded_state
             GC.start
             @runner = Thread.start { 
-              #@files.each do |file|
-              # puts "loading #{file}"
-              # load file
-              # puts "loaded #{file}"
-              #end
               Processing.load_and_run_sketch 
             }
           end
@@ -60,6 +55,8 @@ module Processing
     
     # Used to completely remove all traces of the current sketch, 
     # so that it can be loaded afresh. Go down into modules to find it, even.
+    # MF: expanded to include paths added in the command line 
+    # so that it works with sketches containing multiple files
     def wipe_out_current_app!
       @runner.kill if @runner.alive?
       app = $app
@@ -69,38 +66,26 @@ module Processing
       sleep 0.075
       app.close
  
-#      constant_names = app.class.to_s.split(/::/)
-#      app_class_name = constant_names.pop
-#      puts "removing #{app_class_name}"
-#      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
-#      puts "class is #{app_class}"
-#      app_class.send(:remove_const, app_class_name)
-#      puts "class is #{app_class} after removal"      
       wipe_out_app_classes! (app)
       
     end
     
     def wipe_out_app_classes! app
-      
       class_names_to_remove = Module.constants - HARNESS_CLASS_NAMES + [app.class.to_s]
-      #puts "removing classes #{class_names_to_remove.inspect}"
       class_names_to_remove.each do |class_name|
         constant_names = class_name.to_s.split(/::/)
         app_class_name = constant_names.pop
         app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
         app_class.send(:remove_const, app_class_name)
       end
-      # IT'S A DAMN HACK!
-      # TODO: work out how to consolidate to absolute paths
-      $".replace($".reject{ |item| item.match(/sample/) })
-      puts "included:::"
-      puts $".inspect
-      puts "files: #{@files.inspect}"
-#      constant_names = app.class.to_s.split(/::/)
-#      app_class_name = constant_names.pop
-#      app_class = constant_names.inject(Object) {|moduul, name| moduul.send(:const_get, name) }
-#      app_class.send(:remove_const, app_class_name)
-
+      
+      # $" is the array of required files that have already been loaded
+      # These paths are stored relatively
+      # Convert to absolute paths and then remove so that requires are triggered again 
+      $".replace $".map{ |path| File.expand_path(path) }
+      class_names_to_remove.replace class_names_to_remove.map{ |path| File.expand_path(path) }
+      $".replace($" - class_names_to_remove)
+  
     end
     
     # The following methods were intended to make the watcher clean up all code

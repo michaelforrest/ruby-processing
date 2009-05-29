@@ -38,9 +38,14 @@ module Processing
       thread.join
     end
     def start_thread!
-      @runner = Thread.start { 
-        Processing.load_and_run_sketch 
-      }
+      @runner = Thread.start do
+        begin
+          Processing.load_and_run_sketch
+        rescue Exception=>e
+          puts e
+          puts e.backtrace
+        end
+      end
     end
     
     def any_files_changed?

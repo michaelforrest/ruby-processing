@@ -42,7 +42,9 @@ module Processing
         begin
           Processing.load_and_run_sketch
         rescue Exception=>e
+          puts "\033[0;31m" # RED
           puts e
+          puts "\e[0m" # NORMAL
           puts e.backtrace
         end
       end

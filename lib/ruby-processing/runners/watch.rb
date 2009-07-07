@@ -6,7 +6,7 @@ module Processing
   # the feedback between code and effect.
   class Watcher
     HARNESS_CLASS_NAMES = Module.constants
-    
+    HARNESS_CLASS_FILES = $".map{ |path| File.expand_path(path) }
     # Sic a new Processing::Watcher on the sketch
     def initialize
       @files = ARGV.map { |path|
@@ -46,6 +46,7 @@ module Processing
           puts e
           puts "\e[0m" # NORMAL
           puts e.backtrace
+          raise e
         end
       end
     end
@@ -80,6 +81,7 @@ module Processing
     
     def wipe_out_app_classes! app
       class_names_to_remove = Module.constants - HARNESS_CLASS_NAMES #+ [app.class.to_s]
+      puts "removing constants #{class_names_to_remove.inspect}"
       class_names_to_remove.each do |class_name|
         constant_names = class_name.to_s.split(/::/)
         app_class_name = constant_names.pop
@@ -91,8 +93,9 @@ module Processing
       # These paths are stored relatively
       # Convert to absolute paths and then remove so that requires are triggered again 
       $".replace $".map{ |path| File.expand_path(path) }
-      class_names_to_remove.replace class_names_to_remove.map{ |path| File.expand_path(path) }
-      $".replace($" - class_names_to_remove)
+      class_files_to_remove = $" - HARNESS_CLASS_FILES
+      puts "removing required files #{class_files_to_remove.inspect}"
+      $".replace $" - class_files_to_remove
   
     end
     

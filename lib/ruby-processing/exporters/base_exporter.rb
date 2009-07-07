@@ -29,7 +29,7 @@ module Processing
       @info[:height]          = extract_dimension(source, 'height')
       @info[:description]     = extract_description(source)
       @info[:libraries]       = extract_libraries(source)
-      @info[:real_requires]   = extract_real_requires(source)
+      @info[:real_requires]   = []#extract_real_requires(source)
       hash_to_ivars @info
       @info
     end
